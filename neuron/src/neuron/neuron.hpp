@@ -8,18 +8,50 @@
 #include <neuron/api/api.hpp>
 
 #include "config.hpp"
+#include "render/render_context.hpp"
+
+#include <list>
+#include <unordered_set>
 
 namespace neuron {
-    class Engine : public std::enable_shared_from_this<Engine>, api::IEngine {
+    class NEURON_API Module : public api::IModule {
+      public:
+        explicit Module(const std::filesystem::path &path);
+
+        ~Module() override;
+        const std::filesystem::path &path() const override;
+        api::PFN_neuron_module_entry entry_point() const override;
+
+      private:
+        std::filesystem::path        _path;
+        api::PFN_neuron_module_entry _entry;
+
+#ifdef __linux__
+        void *_dl;
+#else
+#  error "Platform not supported"
+#endif
+    };
+
+    class NEURON_API Engine : public std::enable_shared_from_this<Engine>, public api::IEngine {
         Engine();
-    public:
-        inline static std::shared_ptr<Engine> create() {
-            return std::shared_ptr<Engine>(new Engine());
-        }
+
+      public:
+        inline static std::shared_ptr<Engine> create() { return std::shared_ptr<Engine>(new Engine()); }
 
         ~Engine() override;
 
-    private:
+        Handle<api::IModule>                 load_module(const std::filesystem::path &path) override;
+        bool                                 is_module_loaded(Handle<api::IModule> handle) override;
+        bool                                 is_module_path_loaded(const std::filesystem::path &path) override;
+        bool                                 unload_module(Handle<api::IModule> handle) override;
+        Handle<api::IModule>                 find_loaded_module(const std::filesystem::path &path) override;
+        const module_map_t                  &get_loaded_modules() override;
+        std::shared_ptr<api::IRenderContext> render_context() override;
 
+      private:
+        std::unordered_set<api::IModule *> _loaded_modules;
+        std::shared_ptr<RenderContext>     _render_context;
+        module_map_t                       _modules_by_path;
     };
-}
+} // namespace neuron

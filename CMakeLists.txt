@@ -5,4 +5,4 @@ set(CMAKE_CXX_STANDARD 26)
 
 add_subdirectory(neuron)
 add_subdirectory(game)
-
+add_subdirectory(example_module)

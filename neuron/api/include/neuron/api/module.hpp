@@ -17,9 +17,9 @@ namespace neuron::api {
 
     class IModule {
     public:
-        virtual ~IModule() = 0;
+        virtual ~IModule() = default;
 
-        virtual const std::filesystem::path& path() = 0;
-        virtual PFN_neuron_module_entry entry_point() = 0;
+        virtual const std::filesystem::path& path() const = 0;
+        virtual PFN_neuron_module_entry entry_point() const = 0;
     };
 } // namespace neuron::api

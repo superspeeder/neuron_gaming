@@ -4,6 +4,7 @@
 
 #pragma once
 #include <atomic>
+#include <concepts>
 
 namespace neuron {
     template <typename T>
@@ -36,5 +37,44 @@ namespace neuron {
         inline static Handle<T2> of(T2 *p) {
             return Handle<T2>(p);
         }
+
+        friend std::size_t hash_value(const Handle &obj) {
+            std::size_t seed = 0x6DABBAEE;
+            seed ^= (seed << 6) + (seed >> 2) + 0x60DC4FC4 + static_cast<std::size_t>(obj.pointer);
+            return seed;
+        }
+
+        friend void swap(Handle &lhs, Handle &rhs) noexcept {
+            using std::swap;
+            swap(lhs.pointer, rhs.pointer);
+        }
+
+        template <class S>
+            requires(std::derived_from<T, S>)
+        inline operator Handle<S>() const {
+            return Handle<S>(reinterpret_cast<S*>(pointer));
+        }
+
+        template <std::derived_from<T> D>
+        explicit inline operator Handle<D>() const {
+            return Handle(dynamic_cast<D *>(pointer));
+        }
+
+        template<typename S>
+        inline operator Handle<S>() const {
+            return Handle<S>(nullptr);
+        }
+
+        inline T *get() noexcept { return pointer; }
+
+        inline const T *get() const noexcept { return pointer; }
     };
 } // namespace neuron
+
+namespace std {
+
+    template <typename T>
+    struct hash<neuron::Handle<T>> {
+        inline auto operator()(const neuron::Handle<T> &obj) { return hash_value(obj); }
+    };
+} // namespace std
