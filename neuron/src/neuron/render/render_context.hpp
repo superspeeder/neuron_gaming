@@ -3,16 +3,33 @@
 //
 
 #pragma once
+#include "neuron/config.hpp"
 #include <neuron/api/render.hpp>
 #include <set>
 
 #include <GLFW/glfw3.h>
 
+#ifdef WIN32
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
+#include <winrt/Windows.Foundation.h>
+
+#define GLFW_EXPOSE_NATIVE_WIN32
+#include <GLFW/glfw3native.h>
+// See https://learn.microsoft.com/en-us/windows/apps/desktop/modernize/ui/apply-windows-themes
+#include <windows.h>
+#include <winrt/Windows.UI.ViewManagement.h>
+#include <dwmapi.h>
+#ifndef DWMWA_USE_IMMERSIVE_DARK_MODE
+#define DWMWA_USE_IMMERSIVE_DARK_MODE 20
+#endif
+#endif
+
 namespace neuron {
 
-    class RenderContext;
+    class NEURON_API RenderContext;
 
-    class Window : public api::IWindow, public api::ISwapchain {
+    class NEURON_API Window : public api::IWindow, public api::ISwapchain {
       public:
         Window(std::string_view title, uint32_t width, uint32_t height, const std::shared_ptr<RenderContext> &context);
         ~Window() override;
@@ -57,9 +74,11 @@ namespace neuron {
 
         static vk::SurfaceFormatKHR default_format_selector(const std::vector<vk::SurfaceFormatKHR> &formats);
         static vk::PresentModeKHR   default_present_mode_selector(const std::vector<vk::PresentModeKHR> &modes);
+
+        winrt::Windows::UI::ViewManagement::UISettings::ColorValuesChanged_revoker _dark_mode_revoker;
     };
 
-    class RenderContext : public api::IRenderContext {
+    class NEURON_API RenderContext : public api::IRenderContext {
       public:
         RenderContext();
 
@@ -79,7 +98,7 @@ namespace neuron {
         std::vector<const char *> enabled_extensions() override;
         bool                      is_extension_enabled(std::string_view extension) override;
 
-        std::shared_ptr<api::IWindow> create_window(std::string_view title, const vk::Extent2D &size) override;
+        std::tuple<std::shared_ptr<api::IWindow>, std::shared_ptr<api::ISwapchain>> create_window(std::string_view title, const vk::Extent2D &size) override;
 
       private:
         vk::raii::Context         _context;

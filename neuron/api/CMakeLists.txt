@@ -12,5 +12,5 @@ add_library(neuron_api INTERFACE
         include/neuron/api/render.hpp)
 add_library(neuron::api ALIAS neuron_api)
 target_include_directories(neuron_api INTERFACE include/)
-target_compile_features(neuron_api INTERFACE cxx_std_26)
+target_compile_features(neuron_api INTERFACE cxx_std_23)
 target_link_libraries(neuron_api INTERFACE glm::glm Vulkan::Headers)

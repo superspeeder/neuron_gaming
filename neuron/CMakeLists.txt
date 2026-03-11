@@ -24,4 +24,12 @@ if (LINUX)
     target_link_libraries(neuron PUBLIC dl)
 endif()
 
-target_compile_features(neuron PUBLIC cxx_std_26)
+if (WIN32)
+    target_compile_definitions(neuron PUBLIC NEURON_SHARED PRIVATE NEURON_EXPORTS)
+    target_link_libraries(neuron PUBLIC dwmapi RuntimeObject)
+
+
+    add_custom_command(TARGET neuron::neuron POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy -t $<TARGET_FILE_DIR:game> $<TARGET_FILE:neuron::neuron> COMMAND_EXPAND_LISTS)
+endif()
+
+target_compile_features(neuron PUBLIC cxx_std_23)

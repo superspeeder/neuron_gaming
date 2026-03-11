@@ -31,7 +31,7 @@ namespace neuron::api {
         virtual std::vector<const char *> enabled_extensions() = 0;
         virtual bool is_extension_enabled(std::string_view extension) = 0;
 
-        virtual std::shared_ptr<IWindow> create_window(std::string_view title, const vk::Extent2D &size) = 0;
+        virtual std::tuple<std::shared_ptr<IWindow>, std::shared_ptr<ISwapchain>> create_window(std::string_view title, const vk::Extent2D &size) = 0;
 
       private:
     };

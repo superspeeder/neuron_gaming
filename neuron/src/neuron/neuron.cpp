@@ -9,6 +9,11 @@
 
 #if defined(__linux__)
 #  include <dlfcn.h>
+#elif defined(WIN32)
+#  define NOMINMAX
+#  define WIN32_LEAN_AND_MEAN
+#  include <Windows.h>
+#  include <libloaderapi.h>
 #endif
 
 namespace neuron {
@@ -24,13 +29,35 @@ namespace neuron {
             std::cerr << "Error loading module entry point: " << dlerror() << std::endl;
         }
         _entry = reinterpret_cast<api::PFN_neuron_module_entry>(entry_addr);
+#elif defined(WIN32)
+        const auto patht = std::filesystem::absolute(path);
+        _module          = LoadLibraryW(patht.c_str());
+        if (_module == nullptr) {
+            DWORD err = GetLastError();
+            LPSTR msg = nullptr;
+            FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS | FORMAT_MESSAGE_ARGUMENT_ARRAY | FORMAT_MESSAGE_ALLOCATE_BUFFER, nullptr, err, 0, msg, 0,
+                           nullptr);
+            std::cerr << "Error loading module: " << msg << std::endl;
+            LocalFree(msg);
+        }
+
+        const FARPROC entry_addr = GetProcAddress(_module, "neuron_module_entry");
+        if (entry_addr == nullptr) {
+            std::cerr << "Error loading module entry point" << std::endl;
+        }
+        std::cout << "Proc: " << reinterpret_cast<uintptr_t>(entry_addr) << std::endl;
+        _entry = reinterpret_cast<api::PFN_neuron_module_entry>(entry_addr);
 #else
         throw std::logic_error("Unimplemented");
 #endif
     }
 
     Module::~Module() {
+#if defined(__linux__)
         dlclose(_dl);
+#elif defined(WIN32)
+        FreeLibrary(_module);
+#endif
     }
 
     const std::filesystem::path &Module::path() const {

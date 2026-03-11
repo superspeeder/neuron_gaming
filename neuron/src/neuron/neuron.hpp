@@ -13,6 +13,12 @@
 #include <list>
 #include <unordered_set>
 
+#if defined(WIN32)
+#  define WIN32_LEAN_AND_MEAN
+#  define NOMINMAX
+#  include <Windows.h>
+#endif
+
 namespace neuron {
     class NEURON_API Module : public api::IModule {
       public:
@@ -26,8 +32,10 @@ namespace neuron {
         std::filesystem::path        _path;
         api::PFN_neuron_module_entry _entry;
 
-#ifdef __linux__
+#if defined(__linux__)
         void *_dl;
+#elif defined(WIN32)
+        HMODULE _module;
 #else
 #  error "Platform not supported"
 #endif

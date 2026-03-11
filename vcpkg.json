@@ -12,8 +12,13 @@
       ]
     },
     "stb",
-    "vulkan-headers"
+    "vulkan-headers",
+    {
+      "name": "glm",
+      "version>=": "1.0.1#3"
+    }
   ],
   "version-string": "1.0.0",
-  "name": "gaming"
+  "name": "gaming",
+  "builtin-baseline": "c6935bce7513fa878944c03cd72473b298fab53e"
 }

@@ -5,8 +5,41 @@
 #include "render_context.hpp"
 
 #include <array>
+#include <iostream>
 #include <ranges>
 #include <set>
+
+#ifdef WIN32
+using namespace winrt;
+using namespace Windows::UI::ViewManagement;
+
+static bool is_color_light(const Windows::UI::Color &clr) {
+    return (((5 * clr.G) + (2 * clr.R) + clr.B) > (8 * 128));
+}
+
+static bool is_dark_mode() {
+    const auto settings = UISettings();
+
+    const auto foreground = settings.GetColorValue(UIColorType::Foreground);
+    return static_cast<bool>(is_color_light(foreground));
+}
+
+static auto set_dark_mode_revoker(std::function<void(bool)> f) {
+    auto settings = UISettings();
+    auto revoker  = settings.ColorValuesChanged(winrt::auto_revoke, [settings, f](auto &&...) {
+        const auto foreground = settings.GetColorValue(UIColorType::Foreground);
+        const bool is_dark    = is_color_light(foreground);
+        f(is_dark);
+    });
+
+    return revoker;
+}
+
+static void set_dark_mode_for_window(GLFWwindow *window, bool set) {
+    const BOOL                  val = set;
+    [[maybe_unused]] const auto _   = DwmSetWindowAttribute(glfwGetWin32Window(window), DWMWA_USE_IMMERSIVE_DARK_MODE, &val, sizeof(val));
+}
+#endif
 
 namespace neuron {
     Window::Window(const std::string_view title, const uint32_t width, const uint32_t height, const std::shared_ptr<RenderContext> &context) : _render_context(context) {
@@ -16,6 +49,11 @@ namespace neuron {
 
         _window = glfwCreateWindow(static_cast<int>(width), static_cast<int>(height), title.data(), nullptr, nullptr);
 
+#ifdef WIN32
+        set_dark_mode_for_window(_window, is_dark_mode());
+        _dark_mode_revoker = set_dark_mode_revoker([this](const bool set) { set_dark_mode_for_window(_window, set); });
+#endif
+
         VkSurfaceKHR surface;
         if (glfwCreateWindowSurface(*_render_context->instance(), _window, nullptr, &surface) != VK_SUCCESS) {
             throw std::runtime_error("Failed to create vulkan surface for window");
@@ -23,7 +61,7 @@ namespace neuron {
 
         _surface = vk::raii::SurfaceKHR(_render_context->instance(), surface);
 
-        reconfigure();
+        Window::reconfigure();
     }
 
     Window::~Window() {
@@ -144,6 +182,8 @@ namespace neuron {
 
         vk::raii::SwapchainKHR swapchain(_render_context->device(), create_info);
         _swapchain.swap(swapchain);
+
+        _images = _swapchain.getImages();
     }
 
     api::SwapchainFrameInfo Window::acquire_next_frame(const vk::Semaphore image_available) {
@@ -246,9 +286,7 @@ namespace neuron {
             }
 
             vk::DeviceCreateInfo      create_info{};
-            std::vector<const char *> extensions = {
-                VK_KHR_SWAPCHAIN_EXTENSION_NAME,
-            };
+            std::vector<const char *> extensions = {};
 
             std::set<std::string> desired_extensions = {
                 "VK_KHR_buffer_device_address",
@@ -366,12 +404,37 @@ namespace neuron {
                 "VK_KHR_draw_indirect_count",
                 "VK_KHR_get_memory_requirements2",
                 "VK_EXT_shader_viewport_index_layer",
+
+                "VK_EXT_scalar_block_layout",
+                "VK_KHR_depth_stencil_resolve",
+                "VK_KHR_descriptor_update_template",
+                "VK_KHR_dynamic_rendering_local_read",
+                "VK_KHR_external_memory",
+                "VK_KHR_line_rasterization",
+                "VK_KHR_image_format_list",
+                "VK_KHR_uniform_buffer_standard_layout",
+                "VK_EXT_buffer_device_address",
+                "VK_EXT_scalar_block_layout",
+                "VK_EXT_image_sliced_view_of_3d",
+                "VK_EXT_dynamic_rendering_unused_attachments",
+                "VK_EXT_tooling_info",
+                "VK_NV_copy_memory_indirect",
+                "VK_NV_present_metering",
+                "VK_NV_low_latency",
+                "VK_NV_dedicated_allocation",
+                "VK_EXT_subgroup_size_control",
+                "VK_NV_low_latency2",
+                "VK_NVX_image_view_handle",
+                "VK_EXT_separate_stencil_usage",
+                "VK_EXT_index_type_uint8",
+                "VK_EXT_dynamic_rendering_unused_attachments",
             };
 
             const auto available_extensions = _physical_device.enumerateDeviceExtensionProperties();
             for (const auto &[name, _] : available_extensions) {
                 if (desired_extensions.contains(name.data())) {
-                    extensions.push_back(name.data());
+                    const char* s = name.data();
+                    extensions.push_back(s);
                 }
             }
 
@@ -465,5 +528,10 @@ namespace neuron {
 
     bool RenderContext::is_extension_enabled(const std::string_view extension) {
         return _enabled_extension_set.contains(std::string(extension));
+    }
+
+    std::tuple<std::shared_ptr<api::IWindow>, std::shared_ptr<api::ISwapchain>> RenderContext::create_window(std::string_view title, const vk::Extent2D &size) {
+        auto p = std::make_shared<Window>(title, size.width, size.height, std::reinterpret_pointer_cast<RenderContext>(shared_from_this()));
+        return std::make_tuple<std::shared_ptr<api::IWindow>, std::shared_ptr<api::ISwapchain>>(p, p);
     }
 } // namespace neuron

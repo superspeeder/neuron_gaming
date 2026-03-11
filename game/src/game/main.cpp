@@ -6,8 +6,13 @@
 #include <neuron/neuron.hpp>
 #include <ranges>
 
-#include <sys/ioctl.h>
-#include <unistd.h>
+#if defined(__linux__)
+#  include <sys/ioctl.h>
+#  include <unistd.h>
+#elif defined(WIN32)
+#else
+#  error "Target Unsupported"
+#endif
 
 constexpr std::string_view MODULES_DIR = "./modules/";
 
@@ -71,10 +76,21 @@ void print_table(const char *caption, R &&range, C transformer)
         longest = std::max(longest, s.size());
     }
 
+    int term_cols = 80;
+
+#if defined(__linux__)
     winsize w{};
     ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
+    term_cols = w.ws_col;
+#elif defined(WIN32)
+    {
+        CONSOLE_SCREEN_BUFFER_INFO csbi;
+        GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi);
+        term_cols = csbi.srWindow.Right - csbi.srWindow.Left + 1;
+    }
+#endif
 
-    uint32_t ncol   = (w.ws_col - 1) / (longest + 3);
+    uint32_t ncol   = (term_cols - 1) / (longest + 3);
     uint32_t cwidth = longest + 3;
 
     ncol = std::min(MAX_COLS, ncol);
@@ -124,6 +140,11 @@ void print_table(const char *caption, R &&range, C transformer)
 }
 
 int main(int argc, char **argv) {
+#ifdef WIN32
+    SetConsoleOutputCP(CP_UTF8);
+    SetConsoleCP(CP_UTF8);
+#endif
+
     const auto engine = neuron::Engine::create();
     module_loader(engine);
 
@@ -149,7 +170,17 @@ int main(int argc, char **argv) {
         return props.extensionName.data();
     });
 
-    auto window = render_context->create_window()
+    auto [window, swapchain] = render_context->create_window("Hello!", {800, 600});
+
+    std::string text2 =
+        std::format("# of Images: {}\nFormat: {}\nColor Space: {}\nPresent Mode: {}\nExtent: {}x{}", swapchain->images().size(), vk::to_string(swapchain->surface_format().format),
+                    vk::to_string(swapchain->surface_format().colorSpace), vk::to_string(swapchain->present_mode()), swapchain->extent().width, swapchain->extent().height);
+
+    print_boxed("Swapchain", text2, {"33", "93"});
+
+    while (!window->should_close()) {
+        window->update_events();
+    }
 
     return 0;
 }
