@@ -3,6 +3,9 @@
 //
 
 #pragma once
+#include "handle.hpp"
+
+
 #include <memory>
 
 #include <functional>
@@ -11,6 +14,8 @@
 namespace neuron::api {
     class IWindow;
     class ISwapchain;
+    class ICommandPool;
+    class ICommandBuffer;
 
     class IRenderContext : public std::enable_shared_from_this<IRenderContext> {
       public:
@@ -84,5 +89,28 @@ namespace neuron::api {
         virtual void               present_image(const SwapchainFrameInfo &frame_info, vk::Semaphore can_present) = 0;
 
       private:
+    };
+
+    class ICommandPool {
+    public:
+        virtual ~ICommandPool() = default;
+
+        virtual Handle<ICommandBuffer> allocate_buffer() = 0;
+        virtual std::vector<Handle<ICommandBuffer>> allocate_buffers(uint32_t count) = 0;
+    };
+
+    class ICommandBuffer {
+    public:
+        virtual ~ICommandBuffer() = default;
+    };
+
+    class IDescriptorPool {
+    public:
+        virtual ~IDescriptorPool() = default;
+
+
+
+    private:
+        vk::raii::DescriptorPool descriptor_pool;
     };
 } // namespace neuron::api

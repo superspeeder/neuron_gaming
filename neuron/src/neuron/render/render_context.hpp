@@ -75,7 +75,9 @@ namespace neuron {
         static vk::SurfaceFormatKHR default_format_selector(const std::vector<vk::SurfaceFormatKHR> &formats);
         static vk::PresentModeKHR   default_present_mode_selector(const std::vector<vk::PresentModeKHR> &modes);
 
+#ifdef WIN32
         winrt::Windows::UI::ViewManagement::UISettings::ColorValuesChanged_revoker _dark_mode_revoker;
+#endif
     };
 
     class NEURON_API RenderContext : public api::IRenderContext {
@@ -117,4 +119,7 @@ namespace neuron {
         std::set<std::string>     _enabled_extension_set;
     };
 
+    class NEURON_API DescriptorPool {
+
+    };
 } // namespace neuron
